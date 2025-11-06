@@ -8,10 +8,15 @@ const LASTFM_BASE_URL='http://ws.audioscrobbler.com/2.0/';
 
 router.get('/search',async(req,res)=>{
     const {track,fuzzy}=req.query;
+<<<<<<< HEAD
 
     //optional to check authorization
     if(!track || track.trim()===''){
         return res.status(400).json({ error: 'track parameter required' });
+=======
+    if(!track || track.trim()===''){
+        return res.status(400).json({ error: 'track  required' });
+>>>>>>> 3aed5b991b832a972fe1127cdb517ee4d7af01d8
     }
     try{
         const params={
@@ -24,6 +29,12 @@ router.get('/search',async(req,res)=>{
         const useFuzzy = fuzzy === 'true';
         
         const {data}=await axios.get(`${LASTFM_BASE_URL}`,{params});
+<<<<<<< HEAD
+=======
+        
+        
+
+>>>>>>> 3aed5b991b832a972fe1127cdb517ee4d7af01d8
         let minimal = data.results.trackmatches.track
                         .filter(_track => _track.mbid && _track.mbid.trim() !== '')
                         .map((_track) => {
