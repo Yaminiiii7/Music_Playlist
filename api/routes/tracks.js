@@ -6,17 +6,20 @@ const router=express.Router();
 const LASTFM_API_KEY=process.env.API_KEY;
 const LASTFM_BASE_URL='http://ws.audioscrobbler.com/2.0/';
 
+/**
+ * @route GET /tracks/search
+ * @description Search for music tracks using the Last.fm API
+ * @queryparam {string} track (required) the name of the track to search for
+ * @queryparam {boolean} fuzzy (optional) the Last.fm search is fuzzy by default
+ *
+ * @returns {Array<Object>} 200 - An array of minimal track objects.
+ */
 router.get('/search',async(req,res)=>{
     const {track,fuzzy}=req.query;
-<<<<<<< HEAD
 
     //optional to check authorization
     if(!track || track.trim()===''){
         return res.status(400).json({ error: 'track parameter required' });
-=======
-    if(!track || track.trim()===''){
-        return res.status(400).json({ error: 'track  required' });
->>>>>>> 3aed5b991b832a972fe1127cdb517ee4d7af01d8
     }
     try{
         const params={
@@ -29,12 +32,6 @@ router.get('/search',async(req,res)=>{
         const useFuzzy = fuzzy === 'true';
         
         const {data}=await axios.get(`${LASTFM_BASE_URL}`,{params});
-<<<<<<< HEAD
-=======
-        
-        
-
->>>>>>> 3aed5b991b832a972fe1127cdb517ee4d7af01d8
         let minimal = data.results.trackmatches.track
                         .filter(_track => _track.mbid && _track.mbid.trim() !== '')
                         .map((_track) => {
@@ -59,6 +56,13 @@ router.get('/search',async(req,res)=>{
     };
 });
 
+/**
+ * @route GET /tracks/:mbid
+ * @description Get detailed information for a single track from the Last.fm API.
+ * @param {string} mbid (required) valid mbid or a string formatted as 'artist|track'.
+ *
+ * @returns {Object} 200 - A sanitized object with detailed track information.
+ */
 router.get('/:mbid',async(req,res)=>{
     const {mbid}=req.params;
     

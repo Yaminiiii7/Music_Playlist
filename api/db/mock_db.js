@@ -1,26 +1,17 @@
-/**
- * A requirement for the Homework 1 is to add your own mock data
- * to the users and playlists arrays.
 
- * DO NOT modify or edit the functions within this file in any way.
-
- * The funcations provide all the necessary logic to implement
- * the required API endpoints which should correctly interface
- * with this mock database.
- */
 const User = {
     users: [
         {
             _id: 1,
             username: "yamini",
-            password: "password123",
+            password: "$2b$10$/Hrn93Bb7nrsJOWjqTHTn.5h3GaZmZs8yNRZ.IJn7oz/CxkI0KPdK",
             registrationDate: "2025-10-07T20:35:26.902Z",
             // playlists: [1,3]                        
         },
         {
             _id: 2,
             username: "mandadi",
-            password: "password123",
+            password: "$2b$10$UNXNNVFwYbpDijUA8V.EN.ovX1.eaJQzh4D4GxhmFXQzyi47I1f4S",
             registrationDate: "2025-10-07T21:35:26.902Z",
             // playlists: [2]                        
         }

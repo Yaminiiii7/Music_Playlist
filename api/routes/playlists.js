@@ -1,17 +1,26 @@
 import express from 'express';
 import { Playlist } from '../db/mock_db.js';
+import {verifyUser} from '../middleware/authorization.js';
 const router = express.Router();
+
+router.use(verifyUser);
 
 const _sanitize=(userWithPlaylists)=>{
     const { password,_id,username,registrationDate,...rest }=userWithPlaylists;
     return rest;
 };
 
-
+/**
+ * @route GET /playlists
+ * @description get playlists
+ * @header {string} Authorization - "Bearer <token>"
+ * @header {string} Authentication - unique id of the user
+ * @returns {Object} 200 - playlists object
+ */
 router.get('/playlists', async (req, res) => {
     try {
-        
-        const userId = req.headers.authorization;
+        console.log(req.headers)
+        const userId = req.headers.id;//check if it can pass in a header or not
 
         if (!userId) {
             return res.status(401).json({ error: 'Authorization header not present' });
@@ -25,15 +34,20 @@ router.get('/playlists', async (req, res) => {
     }
 });
 
-
-
+/**
+ * @route POST /playlists
+ * @description create playlists
+ * @header {string} Authorization - "Bearer <token>"
+ * @header {string} Authentication id of the user
+ * @returns {Object} 200 - playlists object
+ */
 router.post('/playlists', async (req, res) => {
     try {
         
-        const userId = req.headers.authorization;
+        const userId = req.headers.id;
         const {title, album}=req.body;
         if (!userId) {
-            return res.status(401).json({ error: 'authorization header not present' });
+            return res.status(401).json({ error: 'authentication header not present' });
         }
         if(!title){
             return res.status(400).json({ error: 'title is required' });
@@ -66,14 +80,23 @@ router.post('/playlists', async (req, res) => {
     }
 });
 
+/**
+ * @route PUT /playlists/:id
+ * @description update playlists by adding track
+ * @header {string} Authorization - "Bearer <token>"
+ * @param {number} playlist id to update
+ * @body {Object} track- the full track object to add to the playlist
+ * @returns {Object} 200 - playlists object, updated with the tracks
+ */
+
 router.put('/playlists/:playlist_id', async (req, res) => {
     try{
-        const userId = req.headers.authorization;
+        const userId = req.headers.id;
         const {playlist_id}=req.params;
         
         const { trackdata }=req.body;
         if (!userId) {
-            return res.status(401).json({ error: 'authorization header not present' });
+            return res.status(401).json({ error: 'authentication header not present' });
         }
 
         if(!trackdata){
@@ -96,8 +119,7 @@ router.put('/playlists/:playlist_id', async (req, res) => {
         if(existing_mbid){
             return res.status(409).json({error:'This track already exists for the user in the playlist'})
 
-        }//
-    
+        }
 
         const trackToBeAdded={track_id:existing_playlist.tracks.length+1,...trackdata}
 
@@ -111,10 +133,17 @@ router.put('/playlists/:playlist_id', async (req, res) => {
     }
 });
 
-
+/**
+ * @route DELETE /playlists/:id
+ * @description Deletes a specific playlist owned by the user
+ * @header {string} Authorization - "Bearer <token>"
+ * @header {string} Authentication id of the user
+ * @param {number} playlist id to delete
+ * @returns {Object} 200 - a confirmation object {success:true,_id:<id>}
+ */
 router.delete('/playlists/:playlist_id', async (req, res) => {
     try{
-        const userId = req.headers.authorization;
+        const userId = req.headers.id;
         const {playlist_id}=req.params;
 
         if (!userId) {
