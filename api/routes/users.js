@@ -1,13 +1,14 @@
 import express from 'express';
 
-import {User} from '../db/mock_db.js';
+import User from '../models/user.js';
 import {hash,compare,sign} from '../util/auth.js';
 import {verifyUser} from '../middleware/authorization.js';
 
 const router=express.Router();
 
 const _sanitize=(user)=>{
-    const {password,...rest}=user
+    const userObj=user.toObject?user.toObject():user;
+    const {password, ...rest}=userObj;
     return rest;
 };
 
@@ -26,14 +27,12 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({error:'Username and password required to register.'});
         }
 
-        const existing=User.find('username',username.toLowerCase());
+        const existing=await User.findOne({'username':username.toLowerCase()});
         if (existing){
              return res.status(400).json({error:'Username already exists'})
         }
         const hashed=await hash(password)
-
-        const registeredUser=User.add({username:username.toLowerCase(),password:hashed,registrationDate: new Date().toISOString()});
-
+        const registeredUser=await User.create({username:username.toLowerCase(),password:hashed,registrationDate: new Date().toISOString()});
         res.status(201).json(_sanitize(registeredUser));
 
     }catch(err){
@@ -53,7 +52,7 @@ router.post('/login', async (req, res) => {
     try{
         const {username,password}=req.body;
 
-        const user = User.find('username', username.toLowerCase());
+        const user = await User.findOne({'username':username.toLowerCase()});
         if (!user) {
             return res.status(401).json({ error: 'Invalid username' });
         }
@@ -67,7 +66,7 @@ router.post('/login', async (req, res) => {
 
         res.json({access_token: token,
             token_type: 'Bearer',
-            user: _sanitize({username,password})
+            user:_sanitize(user)
         });
 
     }catch(err){
@@ -90,23 +89,17 @@ router.get('/:id', verifyUser, async (req, res) => {
         const { id } = req.params;
         //const userId= req.headers.authorization;
         
-        //console.log(id);
-        // if (!userId|| userId !== parseInt(id)) {
-        //     return res.status(403).json({ error: 'Forbidden: You are not authorized to view this user' });
-        // }
-
-        const user=User.find('_id',parseInt(id));
-        if(!user){
-            return res.status(404).json({error:'User not found'});
+        console.log(id);
+        console.log(req.user._id.toString())
+        if (req.user._id.toString()!=id) {
+            return res.status(403).json({ error: 'Forbidden: You are not authorized to view this user' });
         }
 
-        return res.json(_sanitize(user));
+        return res.json(_sanitize(req.user));
     } catch (err) {
         console.log(err);
         res.status(500).json({ error: 'Failed to get user' });
     }
 });
-
-
 
 export default router

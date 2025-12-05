@@ -1,13 +1,26 @@
 import express from 'express';
-import { Playlist } from '../db/mock_db.js';
+import Playlist from '../models/playlist.js';
+
 import {verifyUser} from '../middleware/authorization.js';
 const router = express.Router();
 
 router.use(verifyUser);
 
-const _sanitize=(userWithPlaylists)=>{
-    const { password,_id,username,registrationDate,...rest }=userWithPlaylists;
-    return rest;
+// const _sanitize=(userWithPlaylists)=>{
+//     const playlistObj=userWithPlaylists.toObject?userWithPlaylists.toObject():userWithPlaylists;
+//     const { password,user_id,username,registrationDate,createdAt,updatedAt,...rest }=playlistObj;
+//     return rest;
+// };
+
+const _sanitize = (data) => {
+    if (Array.isArray(data)) {
+        return data.map(item => {
+            const playlistObj = item.toObject ? item.toObject() : item;
+            const { password, username, registrationDate, createdAt, updatedAt, ...rest } = playlistObj;
+            return rest;
+        });
+    }
+    // ... rest of your original code
 };
 
 /**
@@ -18,16 +31,21 @@ const _sanitize=(userWithPlaylists)=>{
  * @returns {Object} 200 - playlists object
  */
 router.get('/playlists', async (req, res) => {
-    try {
-        console.log(req.headers)
-        const userId = req.headers.id;//check if it can pass in a header or not
-
+    try {        
+        const userId = req.user._id;
         if (!userId) {
             return res.status(401).json({ error: 'Authorization header not present' });
         }
+        console.log('pl')
+        //const playlists_user=Playlist.find(parseInt(userId))
 
-        const playlists_user=Playlist.populate(parseInt(userId));
-        return res.status(200).json(_sanitize(playlists_user));
+        //const playlists_user=await Playlist.find({'user_id':userId}).populate('title');
+        const playlists_user=await Playlist.find({'user_id':{$in:[userId]}}).populate('title');
+        console.log(playlists_user)
+        if(!playlists_user){
+            return res.status(400).json({ error: 'Playlist Not found' });
+        }
+        return res.status(200).json({"playlists":_sanitize(playlists_user)});
     }catch(err) {
         console.log(err);
         res.status(500).json({ error: 'Failed to get playlist' });
@@ -44,34 +62,33 @@ router.get('/playlists', async (req, res) => {
 router.post('/playlists', async (req, res) => {
     try {
         
-        const userId = req.headers.id;
-        const {title, album}=req.body;
-        if (!userId) {
-            return res.status(401).json({ error: 'authentication header not present' });
-        }
+        const userId = req.user._id;
+        const {title}=req.body;
+        // if (!userId) { Not required
+        //     return res.status(401).json({ error: 'authentication header not present' });
+        // }
         if(!title){
             return res.status(400).json({ error: 'title is required' });
         }
-        const existing_title=Playlist.playlists.filter(
-            eachPlaylist => (eachPlaylist.user_id===parseInt(userId) && eachPlaylist.title===title) 
-        );
-        if(existing_title.length>0){
+        // const existing_title=Playlist.playlists.filter(
+        //     eachPlaylist => (eachPlaylist.user_id===parseInt(userId) && eachPlaylist.title===title) 
+        // );
+        const existing_title = await Playlist.findOne({"user_id":userId,"title":title});
+        console.log(existing_title)
+
+        if(existing_title){
             return res.status(409).json({ error: 'Title already exists' });//title exists for that user or not
         }
 
-        const new_Id=Playlist.playlists.length+1
-        const playlistData={
-            _id: new_Id,
-            user_id: parseInt(userId),
+        const new_playlist= new Playlist({
+            user_id: userId,
             title: title,
-            album: album || '',//optional field
-            tracks: []
-        };
-        
-        
-        const newPlaylist=Playlist.insert(playlistData);
-
-        return res.status(201).json(newPlaylist);
+            tracks:[]
+        });
+       
+        await Playlist.create(new_playlist)
+        console.log('yes')
+        return res.status(201).json(new_playlist);
         
 
     }catch (err){
@@ -91,42 +108,54 @@ router.post('/playlists', async (req, res) => {
 
 router.put('/playlists/:playlist_id', async (req, res) => {
     try{
-        const userId = req.headers.id;
-        const {playlist_id}=req.params;
-        
+        const user = req.user;
+        const {playlist_id}=req.params; 
+        //console.log(req.body)       
         const { trackdata }=req.body;
-        if (!userId) {
-            return res.status(401).json({ error: 'authentication header not present' });
-        }
-
+       // console.log(trackdata)
         if(!trackdata){
             return res.status(400).json({ error: 'track data  is required' });
         }
+
         if (!trackdata.track || !trackdata.artist || !trackdata.album || !trackdata.mbid) {
             return res.status(400).json({ error: 'Track data must include: track, artist, album, mbid' });
         }
-        
-        const existing_playlist=Playlist.find('_id',parseInt(playlist_id));
+
+        const existing_playlist=await Playlist.findOne({ _id:{$in:[playlist_id]},
+                                                         user_id:{$in:[user._id]}                                                       
+        });
+        console.log(existing_playlist)
         if(!existing_playlist){
             return res.status(404).json({ error: 'Given playlist not found for user' });    
-        }
-
-        if (existing_playlist.user_id !== parseInt(userId)) {
-            return res.status(403).json({ error: 'Unauthorized access to playlist' });
-        }
-
-        const existing_mbid=existing_playlist.tracks.find(eachTrack=> eachTrack.mbid==trackdata.mbid)
-        if(existing_mbid){
-            return res.status(409).json({error:'This track already exists for the user in the playlist'})
-
-        }
-
-        const trackToBeAdded={track_id:existing_playlist.tracks.length+1,...trackdata}
-
-        const playlist=Playlist.addToSet(parseInt(playlist_id),trackToBeAdded)
-
-        return res.status(200).json(playlist);
+        } 
         
+        const existing_track = existing_playlist.tracks.find(
+            t => t.track === trackdata.track
+        );
+        
+        if (existing_track) {
+            return res.status(409).json({ 
+                error: 'This track with this name already exists' 
+            });
+        }
+
+        // Check if track with same mbid already exists in this playlist
+        const existing_mbid = existing_playlist.tracks.find(
+            track => track.mbid === trackdata.mbid
+        );
+        
+        if (existing_mbid) {
+            return res.status(409).json({ 
+                error: 'This track with this mbid already exists in this playlist' 
+            });
+        }
+        
+        const updated_playlist = await Playlist.findByIdAndUpdate(
+            playlist_id,
+            { $addToSet: { tracks: trackdata } },
+            { new: true } // Return the updated document
+        );
+        return res.status(200).json(updated_playlist);        
     }catch(err){
         console.log(err);
         res.status(500).json({ error: 'Failed to update playlist with track data' });
@@ -143,21 +172,22 @@ router.put('/playlists/:playlist_id', async (req, res) => {
  */
 router.delete('/playlists/:playlist_id', async (req, res) => {
     try{
-        const userId = req.headers.id;
+        const userId = req.user._id;
         const {playlist_id}=req.params;
-
-        if (!userId) {
-            return res.status(401).json({ error: 'Authorization header not present' });
-        }
   
-        const existing_playlist=Playlist.find('_id',parseInt(playlist_id)) && Playlist.find('user_id',parseInt(userId));
+        const existing_playlist = await Playlist.findOne({
+            _id: { $in: [playlist_id] },
+            user_id: { $in: [userId] }
+        });
+
         if(!existing_playlist){
             return res.status(404).json({ error: 'playlist not found' });    
         }
+        existing_playlist.$locals.userId=userId;
+        existing_playlist.$locals.playlistId=playlist_id;
+        await existing_playlist.deleteOne();
 
-        const outputMessage=Playlist.delete(parseInt(playlist_id))
-
-        return res.json({ message: outputMessage });
+        return res.json({ message: {success:true, _id: playlist_id }});
     }catch(err){
         console.log(err);
         res.status(500).json({ error: 'Failed to delete playlist' });

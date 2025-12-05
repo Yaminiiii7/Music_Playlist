@@ -14,12 +14,13 @@ const compare=async(password,dbPassword)=>{
     return await bcrypt.compare(password,dbPassword);
 };
 
-const sign=(payload)=>{
+const sign=(payload)=>{//returns token
     return jwt.sign(payload, JWT_SECRET, {expiresIn:'24h'});
 };
 
-const verify=(token)=>{
+const verify=(token)=>{//checks with jwt token with secretkey and expirydate
     try{
+        //console.log(jwt.verify(token,JWT_SECRET))has a object that contain user details+expiry
         return jwt.verify(token,JWT_SECRET);
 
     }catch(error){

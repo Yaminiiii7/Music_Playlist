@@ -60,13 +60,13 @@ router.get('/search',async(req,res)=>{
  * @route GET /tracks/:mbid
  * @description Get detailed information for a single track from the Last.fm API.
  * @param {string} mbid (required) valid mbid or a string formatted as 'artist|track'.
- *
+ * 001bf2b7-586b-4473-8849-b0c6db211da5  or Andra Day|Rise Up
  * @returns {Object} 200 - A sanitized object with detailed track information.
  */
 router.get('/:mbid',async(req,res)=>{
     const {mbid}=req.params;
     
-    if(!mbid||mbid.trim() === ''){
+    if(!mbid){
         return res.status(400).json({ error: 'mbid required' });
        
     }
@@ -74,20 +74,29 @@ router.get('/:mbid',async(req,res)=>{
         const params={
             api_key: LASTFM_API_KEY,
             method: 'track.getInfo',
-            mbid,
             format: 'json'
+        }
+        if (mbid.includes('|')){
+            const [artist,track]=mbid.split('|');
+            params.artist=artist;
+            params.track=track;
+         }
+        else{
+            params.mbid=mbid;
         }
         
         const {data} =await axios.get(`${LASTFM_BASE_URL}`,{params});
+        // image= data.track.album?.image?.find((img)=>img.size==='extralarge');
         const minimal = {
             //id: data.id,
             name: data.track.name,
             mbid: data.track.mbid,
-            url: data.track.url,
+            //url: data.track.url,
             album: data.track.album.title,
+            //image: image['#text'],
             artist_name: data.track.artist.name,
-            published: data.track.wiki.published,
-            toptags: data.track.toptags.tag.map((t) => t.name)
+            //published: data.track.wiki.published,
+            //toptags: data.track.toptags.tag.map((t) => t.name)
             
         };
         res.status(200).json(minimal);

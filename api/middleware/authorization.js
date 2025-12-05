@@ -1,5 +1,5 @@
 import {verify} from '../util/auth.js';
-import {User} from '../db/mock_db.js';
+import User from '../models/user.js';
 
 const verifyUser=async (req,res,next)=>{
     const {authorization}=req.headers;
@@ -21,7 +21,7 @@ const verifyUser=async (req,res,next)=>{
             return res.status(401).json({error:'Token is invalid or expired'});
         }
 
-        const user=User.find('_id',verified._id);
+        const user=await User.findOne({'_id':verified._id});
         if(!user){
             return res.status(401).json({error:'User not found'});
         }
